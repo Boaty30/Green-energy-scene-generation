@@ -2,8 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # 加载生成样本和真实样本
-generated_samples = np.load('GAN\sample_vae\generated_samples.npy')
-real_samples = np.load('DM_informer/ca_data_99solar_15min.npy')
+generated_samples = np.load('DM_informer\sample_transfer\ddpm_transfer_sample.npy')
+real_samples = np.load('DM_informer\green_data_15min.npy')
 
 # 将真实样本重新调整形状
 real_samples = real_samples.reshape(-1, 96, 1)
@@ -31,7 +31,7 @@ results = {
 
 import pandas as pd
 df = pd.DataFrame(results)
-df.to_csv('GAN\VAE\power_interval_mean_width.csv', index=False, encoding='utf_8_sig')
+df.to_csv('DM_informer\power_interval_mean_width_transfer.csv', index=False, encoding='utf_8_sig')
 
 # 展示结果
 print("功率区间平均宽度已保存到 'power_interval_mean_width.csv'")
@@ -60,7 +60,7 @@ print(f"覆盖率: {coverage_rate}")
 # 保存覆盖率结果到CSV文件
 import csv
 
-with open('GAN\VAE\coverage_rate.csv', mode='w', newline='') as file:
+with open('DM_informer\coverage_rate_transfer.csv', mode='w', newline='') as file:
     writer = csv.writer(file)
     writer.writerow(['样本类型', '覆盖率'])
     writer.writerow(['生成样本', coverage_rate])
