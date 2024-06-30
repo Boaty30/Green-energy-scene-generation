@@ -7,9 +7,8 @@ font_path = 'C:\\Windows\\Fonts\\simsun.ttc'
 font_prop = fm.FontProperties(fname=font_path, size=10)
 
 # 加载生成样本和真实样本
-#generated_samples = np.load(r'C:\Users\boaty\Documents\WHU Files\硕士项目\综合能源场景生成\GAN\sample_wgan\generated_samples.npy')
-generated_samples = np.load('sample_ddpm\ddpm_sample.npy')
-real_samples = np.load('ca_data_99solar_15min.npy')
+generated_samples = np.load('GAN\sample_vae\generated_samples.npy')
+real_samples = np.load('DM_informer/ca_data_99solar_15min.npy')
 real_samples = real_samples.reshape(-1, 96, 1)
 
 # 计算自相关系数
@@ -41,24 +40,33 @@ fig, axs = plt.subplots(3, 5, figsize=(20, 12))
 
 for i in range(5):
     # 第一行：生成样本
-    axs[0, i].plot(selected_generated_samples[i].squeeze())
+    axs[0, i].plot(selected_generated_samples[i].squeeze(), label='生成样本')
     
     # 第二行：对应的真实样本
-    axs[1, i].plot(selected_real_samples[i], color='red')
+    axs[1, i].plot(selected_real_samples[i], color='red', label='最接近的真实样本')
     
     # 第三行：自相关系数
     gen_acf, real_acf = selected_acfs[i]
-    axs[2, i].plot(gen_acf, label='生成样本的自相关系数')
-    axs[2, i].plot(real_acf, label='真实样本的自相关系数', linestyle='--')
-    axs[2, i].legend(prop=font_prop)
+    axs[2, i].plot(gen_acf, label='生成样本的自相关系数', color='blue')
+    axs[2, i].plot(real_acf, label='真实样本的自相关系数', linestyle='--', color='red')
+
+# # 设置每一行的标题
+# for i in range(5):
+#     axs[0, i].set_title('生成样本', fontproperties=font_prop)
+#     axs[1, i].set_title('最接近的真实样本', fontproperties=font_prop)
+#     axs[2, i].set_title('自相关系数对比', fontproperties=font_prop)
 
 # 设置每一行的标题
 axs[0, 0].set_ylabel('生成样本', fontproperties=font_prop)
 axs[1, 0].set_ylabel('最接近的真实样本', fontproperties=font_prop)
 axs[2, 0].set_ylabel('自相关系数对比', fontproperties=font_prop)
 
+# 在图外设置图例
+lines_labels = [axs[2, i].get_legend_handles_labels() for i in range(5)]
+lines, labels = [sum(lol, []) for lol in zip(*lines_labels)]
+fig.legend(lines[:2], labels[:2], loc='lower center', prop=font_prop, ncol=2)
+
 # 设置总体标题和布局
-# plt.suptitle('生成样本、最接近的真实样本及其自相关系数对比', fontproperties=font_prop)
 plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-plt.savefig('sample_comparison_acf.png')
+plt.savefig('GAN\VAE\sample_comparison_acf.png')
 plt.show()
