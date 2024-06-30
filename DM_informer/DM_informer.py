@@ -11,6 +11,7 @@ import torch.nn.functional as F
 from pathlib import Path
 from torch.optim import Adam
 import numpy as np
+import time
 
 # 导入Informer模型
 from model import InformerForDDPM
@@ -92,11 +93,11 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 model = InformerForDDPM(
     enc_in=1, 
     seq_len=96,  
-    d_model=512,  
+    d_model=1024,  
     n_heads=8,  
     e_layers=4,  
-    d_ff=2048,  
-    dropout=0.2,  
+    d_ff=4096,  
+    dropout=0.1,  
     attn='prob',
     activation='gelu',
     output_attention=False,
@@ -110,7 +111,7 @@ optimizer = Adam(model.parameters(), lr=1e-4)
 
 # 加载数据
 print("Loading data...")
-data = np.load("ca_data_99solar_15min.npy")
+data = np.load("DM_informer/ca_data_99solar_15min.npy")
 data = torch.tensor(data, dtype=torch.float32)
 # 数据归一化
 data_min = data.min()
@@ -127,24 +128,31 @@ print("Starting training...")
 loss_values = []
 
 for epoch in range(epochs):
-    step = 0
-    for start in range(0, len(data), batch_size):
-        end = min(start + batch_size, len(data))
-        optimizer.zero_grad()
-        
-        batch = data[start:end].to(device)
-        t = torch.randint(0, timesteps, (batch.shape[0],), device=device).long()
-        
-        loss = p_losses(model, batch, t, noise=None, loss_type="huber")
-        
-        if step % 100 == 0:
-            print(f"Epoch {epoch+1}, Step {step+1}, Loss: {loss.item()}")
-        
-        loss.backward()
-        optimizer.step()
-        
-        loss_values.append(loss.item())
-        step += 1
+    start_time = time.time()
+    with tqdm(total=len(data), desc=f"Epoch {epoch + 1}/{epochs}") as pbar:
+        step = 0
+        for start in range(0, len(data), batch_size):
+            end = min(start + batch_size, len(data))
+            optimizer.zero_grad()
+            
+            batch = data[start:end].to(device)
+            t = torch.randint(0, timesteps, (batch.shape[0],), device=device).long()
+            
+            loss = p_losses(model, batch, t, noise=None, loss_type="huber")
+            
+            if step % 100 == 0:
+                pbar.set_postfix({"Loss": f"{loss.item():.6f}"})
+            
+            loss.backward()
+            optimizer.step()
+            
+            loss_values.append(loss.item())
+            step += 1
+            pbar.update(batch_size)
+            
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    print(f"Epoch {epoch + 1} completed in {elapsed_time:.2f} seconds.")
 
 plt.plot(loss_values)
 plt.xlabel('Training Step')
@@ -152,9 +160,8 @@ plt.ylabel('Loss')
 plt.title('Training Loss over Time')
 plt.savefig('loss.png')
 
-
 print("Training completed.")
 
 # 训练完成后保存模型
-torch.save(model.state_dict(), 'informer_ddpm_model.pth')
+torch.save(model.state_dict(), 'DM_informer/informer_ddpm_model.pth')
 print("Model saved.")
