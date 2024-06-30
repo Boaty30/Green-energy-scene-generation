@@ -105,7 +105,7 @@ optimizer = Adam(model.parameters(), lr=1e-4)
 
 # Load data
 print("Loading data...")
-data = np.load("ca_data_99solar_15min.npy")
+data = np.load("DM_informer/ca_data_99solar_15min.npy")
 data = torch.tensor(data, dtype=torch.float32)
 
 # 数据归一化
@@ -117,7 +117,7 @@ data = data.reshape(-1, 96, 1)
 print("Data shape:", data.shape)  # 输出数据形状
 
 # 加载模型权重
-model.load_state_dict(torch.load('informer_ddpm_model.pth'))
+model.load_state_dict(torch.load('DM_informer/informer_ddpm_model.pth'))
 model.eval()
 print("Model loaded.")
 
@@ -143,57 +143,37 @@ def p_sample(model, x, t, t_index):
 
 # 定义 p_sample_loop 函数
 @torch.no_grad()
-def p_sample_loop(model, shape):
+def p_sample_loop(model, shape, batch_size=256):
     device = next(model.parameters()).device
-    b = shape[0]
-    img = torch.randn(shape, device=device)
-    imgs = []
-
+    img = torch.randn((batch_size, *shape), device=device)
     for i in tqdm(reversed(range(0, timesteps)), desc='sampling loop time step', total=timesteps):
-        img = p_sample(model, img, torch.full((b,), i, device=device, dtype=torch.long), i)
-        imgs.append(img.cpu().numpy())
-    return imgs[-1]  # 返回最后一步生成的样本
+        img = p_sample(model, img, torch.full((batch_size,), i, device=device, dtype=torch.long), i)
+    return img.cpu().numpy()  # 返回最后一步生成的样本
 
+# 批量生成样本
+batch_size = 256  # 可以根据实际情况调整批量大小
+num_samples = 10000
 generated_samples = []
-for g in range(30):
+
+for idx in range(num_samples // batch_size):
     # 生成样本
-    generated_sample = p_sample_loop(model, shape=(1, 96, 1)).squeeze()
+    batch_generated_samples = p_sample_loop(model, shape=(96, 1), batch_size=batch_size)
 
     # 将生成的样本转换为 tensor 并进行反归一化处理
-    generated_sample_tensor = torch.tensor(generated_sample, dtype=torch.float32).squeeze()
-    generated_sample_tensor = generated_sample_tensor * (data_max - data_min) + data_min
+    batch_generated_samples = torch.tensor(batch_generated_samples, dtype=torch.float32)
+    batch_generated_samples = batch_generated_samples * (data_max - data_min) + data_min
 
     # 确保样本中所有的值不小于0
-    generated_sample_tensor = torch.clamp(generated_sample_tensor, min=0)
+    batch_generated_samples = torch.clamp(batch_generated_samples, min=0)
 
-    # 计算欧几里得距离
-    def euclidean_distance(tensor1, tensor2):
-        return torch.sqrt(torch.sum((tensor1 - tensor2) ** 2))
+    generated_samples.append(batch_generated_samples.cpu().numpy())
 
-    # 生成样本并计算与数据集中样本的距离
-    distances = []
-    for i in range(data.shape[0]):
-        distances.append(euclidean_distance(generated_sample_tensor, data[i].squeeze()))
+    # 输出当前进度
+    print(f'Batch {idx+1}/{num_samples // batch_size} generated and saved.')
 
-    distances = torch.tensor(distances)
-    min_distance_index = torch.argmin(distances).item()
-
-    # 找到距离最小的样本
-    closest_sample = data[min_distance_index].cpu().numpy()
-
-    # 可视化对比
-    plt.figure(figsize=(12, 6))
-    plt.plot(closest_sample, label='Closest Sample')
-    plt.plot(generated_sample_tensor.cpu().numpy(), label='Generated Sample')
-    plt.legend()
-    plt.title('Generated Sample vs. Closest Sample in Dataset')
-    plt.xlabel('Hour')
-    plt.ylabel('Output')
-    # plt.show()
-    plt.savefig(f'sample_ddpm/result{g}.png')
-    plt.close()
-    print(f'Sample {g+1} generated and saved.')
-    generated_samples.append(generated_sample_tensor.cpu().numpy())
+# 将所有生成的样本合并成一个数组
+generated_samples = np.concatenate(generated_samples, axis=0)
 
 # 保存生成的样本到 .npy 文件
-np.save('sample_ddpm/ddpm_sample.npy', generated_samples)
+np.save('DM_informer/sample_ddpm/ddpm_sample.npy', generated_samples)
+print(f'{num_samples} samples generated and saved.')
