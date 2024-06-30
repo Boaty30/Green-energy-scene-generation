@@ -18,8 +18,8 @@ from model import InformerForDDPM
 print("CUDA available:", torch.cuda.is_available())
 
 print("Loading transfer learning data...")
-data1 = np.load("green_data1_15min.npy")
-data2 = np.load("green_data2_15min.npy")
+data1 = np.load("DM_informer/green_data1_15min.npy")
+data2 = np.load("DM_informer/green_data2_15min.npy")
 
 # 数据归一化
 data1 = torch.tensor(data1, dtype=torch.float32)
@@ -30,7 +30,7 @@ data1_max = data1.max()
 data2 = torch.tensor(data2, dtype=torch.float32)
 data2_min = data2.min()
 data2_max = data2.max()
-# data2 = (data2 - data2_min) / (data2_max - data2_min)
+# data2 = (data2 - data2_min) / (data2_max - data2_max)
 
 # 合并数据集
 data = torch.cat((data1, data2), dim=0)
@@ -120,14 +120,14 @@ model = InformerForDDPM(
     output_attention=False,
     distil=True,
     device=device
-)
+)      
 
 model.to(device)
 
 optimizer = Adam(model.parameters(), lr=1e-4)
 
 # 加载迁移学习后的模型权重
-model.load_state_dict(torch.load('informer_ddpm_transfer_model.pth'))
+model.load_state_dict(torch.load('DM_informer/informer_ddpm_transfer_model.pth'))
 model.eval()
 print("Transfer learning model loaded.")
 
@@ -161,49 +161,26 @@ def p_sample_loop(model, shape):
 
     for i in tqdm(reversed(range(0, timesteps)), desc='sampling loop time step', total=timesteps):
         img = p_sample(model, img, torch.full((b,), i, device=device, dtype=torch.long), i)
-        imgs.append(img.cpu().numpy())
-    return imgs[-1]  # 返回最后一步生成的样本
+    return img.cpu().numpy()  # 返回最后一步生成的样本
 
+# 生成样本
+batch_size = 256  # 设置批量大小
+num_samples = 10000
 generated_samples = []
-for g in range(30):
-    # 生成样本
-    generated_sample = p_sample_loop(model, shape=(1, 96, 1)).squeeze()
 
-    # 将生成的样本转换为 tensor 并进行反归一化处理
-    generated_sample_tensor = torch.tensor(generated_sample, dtype=torch.float32).squeeze()
-    generated_sample_tensor = generated_sample_tensor * (data_max - data_min) + data_min
+for i in range(0, num_samples, batch_size):
+    batch_generated_samples = p_sample_loop(model, shape=(batch_size, 96, 1))
+    for g in range(batch_size):
+        generated_sample = batch_generated_samples[g]
+        generated_sample_tensor = torch.tensor(generated_sample, dtype=torch.float32).squeeze()
+        generated_sample_tensor = generated_sample_tensor * (data_max - data_min) + data_min
+        generated_sample_tensor = torch.clamp(generated_sample_tensor, min=0)
+        generated_samples.append(generated_sample_tensor.cpu().numpy())
 
-    # 确保样本中所有的值不小于0
-    generated_sample_tensor = torch.clamp(generated_sample_tensor, min=0)
+    print(f'Batch {i // batch_size + 1}/{num_samples // batch_size} generated and saved.')
 
-    # 计算欧几里得距离
-    def euclidean_distance(tensor1, tensor2):
-        return torch.sqrt(torch.sum((tensor1 - tensor2) ** 2))
-
-    # 生成样本并计算与数据集中样本的距离
-    distances = []
-    for i in range(data.shape[0]):
-        distances.append(euclidean_distance(generated_sample_tensor, data[i].squeeze()))
-
-    distances = torch.tensor(distances)
-    min_distance_index = torch.argmin(distances).item()
-
-    # 找到距离最小的样本
-    closest_sample = data[min_distance_index].cpu().numpy()
-
-    # 可视化对比
-    plt.figure(figsize=(12, 6))
-    plt.plot(closest_sample, label='Closest Sample')
-    plt.plot(generated_sample_tensor.cpu().numpy(), label='Generated Sample')
-    plt.legend()
-    plt.title('Generated Sample vs. Closest Sample in Dataset')
-    plt.xlabel('Hour')
-    plt.ylabel('Output')
-    # plt.show()
-    plt.savefig(f'sample_transfer/result{g}.png')
-    plt.close()
-    print(f'Sample {g+1} generated and saved.')
-    generated_samples.append(generated_sample_tensor.cpu().numpy())
+generated_samples = np.array(generated_samples)
 
 # 保存生成的样本到 .npy 文件
-np.save('sample_transfer/ddpm_transfer_sample.npy', generated_samples)
+np.save('DM_informer/sample_transfer/ddpm_transfer_sample.npy', generated_samples)
+print(f'{num_samples} samples generated and saved.')
