@@ -8,8 +8,8 @@ font_path = 'C:\\Windows\\Fonts\\simsun.ttc'
 font_prop = FontProperties(fname=font_path, size=10)
 
 # 加载数据
-generated_samples = np.load('DM_informer\sample_transfer\ddpm_transfer_sample.npy').flatten()
-real_samples = np.load('DM_informer\green_data_15min.npy').flatten()
+generated_samples = np.load('GAN&VAE\sample_wgan\generated_samples.npy').flatten()
+real_samples = np.load('DM_informer\ca_data_99solar_15min.npy').flatten()
 
 # 计算CDF
 def calculate_cdf(data):
@@ -39,7 +39,7 @@ plt.title('CDF对比', fontproperties=font_prop)
 plt.legend(prop=font_prop)
 
 # 保存CDF图像
-plt.savefig('DM_informer\cdf_comparison_transfer.png')
+plt.savefig('GAN&VAE\cdf_comparison.png')
 plt.show()
 
 # 绘制PDF对比图
@@ -52,5 +52,5 @@ plt.title('PDF对比', fontproperties=font_prop)
 plt.legend(prop=font_prop)
 
 # 保存PDF图像
-plt.savefig('DM_informer\pdf_comparison_transfer.png')
+plt.savefig('GAN&VAE\pdf_comparison.png')
 plt.show()

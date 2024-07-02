@@ -7,8 +7,8 @@ font_path = 'C:\\Windows\\Fonts\\simsun.ttc'
 font_prop = fm.FontProperties(fname=font_path, size=10)
 
 # 加载生成样本和真实样本
-generated_samples = np.load('DM_informer\sample_transfer\ddpm_transfer_sample.npy')
-real_samples = np.load('DM_informer\green_data_15min.npy')
+generated_samples = np.load('DM_informer\sample_ddpm\ddpm_sample.npy')
+real_samples = np.load('DM_informer\ca_data_99solar_15min.npy')
 real_samples = real_samples.reshape(-1, 96, 1)
 
 # 计算自相关系数
@@ -19,7 +19,7 @@ def calculate_acf(data, k):
     acf = np.correlate(data - P, data - P, mode='full') / (sigma ** 2 * n)
     return acf[n-1:n+k-1]
 
-selected_generated_samples = generated_samples[15:20]
+selected_generated_samples = generated_samples[0:5]
 selected_real_samples = []
 selected_acfs = []
 
@@ -68,5 +68,5 @@ fig.legend(lines[:2], labels[:2], loc='lower center', prop=font_prop, ncol=2)
 
 # 设置总体标题和布局
 plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-plt.savefig('DM_informer\sample_comparison_acf_transfer.png')
+plt.savefig('DM_informer\sample_comparison_acf.png')
 plt.show()
